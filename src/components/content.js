@@ -7,7 +7,7 @@ export const images = {
   offices:'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=850&q=82',
   transactions:'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=850&q=82',
   interiors:'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1200&q=82',
-  skyline:'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1600&q=80'
+  skyline:'https://images.unsplash.com/photo-1749653652468-98a34f0be831?auto=format&fit=crop&w=1600&q=80'
 };
 export const categories=[
  {id:'apartments',icon:'Building2',image:images.apartments,ar:'شقق سكنية',en:'Residential Apartments',descAr:'خيارات سكنية مناسبة لأسلوب حياتك، من الاستوديوهات إلى الشقق العائلية.',descEn:'Thoughtful living spaces, from studios to family apartments.'},
