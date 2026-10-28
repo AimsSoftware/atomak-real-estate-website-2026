@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Netlify automatically supplies the modern Next.js runtime.
+# Do not add a single-page-app redirect that intercepts Next.js routes.
