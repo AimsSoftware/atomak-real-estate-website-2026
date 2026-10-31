@@ -10,7 +10,8 @@ Standalone production deployment of ATOMAK Next.js, with no changes to Quoffa se
 - PM2 app: atomak-web
 - Internal Next.js address: 127.0.0.1:3002 (not publicly exposed)
 - Nginx config: /etc/nginx/conf.d/atomakrealestate.ae.conf
-- Let's Encrypt cert: /etc/letsencrypt/live/atomakrealestate.ae/
+- ATOMAK certificate/key files: /etc/ssl/atomakrealestate/fullchain.cer and /etc/ssl/atomakrealestate/private.key
+- SSL workflow: acme.sh (if confirmed on the VPS), separately from Quoffa.
 
 ## 1. Check the intended VPS and set DNS
 
@@ -62,28 +63,42 @@ Test publicly accessible ACME files after ATOMAK DNS points to this VPS:
     curl -fsS http://atomakrealestate.ae/.well-known/acme-challenge/test
     curl -fsS http://www.atomakrealestate.ae/.well-known/acme-challenge/test
 
-Both should print atomak-ok before Certbot issuance.
+Both should print atomak-ok before attempting certificate issuance.
 
-## 4. Obtain HTTPS certificate
+## 4. Obtain HTTPS certificate in the same .cer/.key layout as Quoffa
 
-Install Certbot using the VPS OS package manager. On AlmaLinux if available:
+Check which ACME client Quoffa uses, read-only (DO NOT modify Quoffa):
 
-    sudo dnf install -y certbot
+    test -f /root/.acme.sh/acme.sh && echo acme.sh-is-installed
+    command -v acme.sh || true
+    openssl x509 -in /etc/ssl/quoffaapi/fullchain.cer -noout -issuer -subject -dates
+    /root/.acme.sh/acme.sh --list
 
-Request the certificate without letting Certbot rewrite Nginx configuration:
+If /root/.acme.sh/acme.sh is present, use these ATOMAK-only commands; otherwise confirm the installed certificate manager before proceeding.
+Find the certificate issuer above; acme.sh can use --server letsencrypt or --server zerossl. Use the matching issuer or your registered ACME account. The example below uses an existing acme.sh default CA and explicitly requests RSA 2048 so installation does not need --ecc:
 
-    sudo certbot certonly --webroot -w /var/www/atomakrealestate/acme --cert-name atomakrealestate.ae -d atomakrealestate.ae -d www.atomakrealestate.ae
+    sudo mkdir -p /etc/ssl/atomakrealestate
+    sudo chmod 700 /etc/ssl/atomakrealestate
+    /root/.acme.sh/acme.sh --issue --webroot /var/www/atomakrealestate/acme -d atomakrealestate.ae -d www.atomakrealestate.ae --keylength 2048
 
-Only after successful certificate issuance, activate the separate ATOMAK HTTPS config:
+After issuance succeeds, install the certificate to ATOMAK-only paths, preserving renewal reload configuration:
 
-    sudo cp /var/www/atomakrealestate/app/deploy/nginx/atomak-https.conf /etc/nginx/conf.d/atomakrealestate.ae.conf
-    sudo nginx -t && sudo systemctl reload nginx
+    /root/.acme.sh/acme.sh --install-cert -d atomakrealestate.ae --key-file /etc/ssl/atomakrealestate/private.key --fullchain-file /etc/ssl/atomakrealestate/fullchain.cer --reloadcmd 'nginx -t && systemctl reload nginx'
+    chmod 600 /etc/ssl/atomakrealestate/private.key
+    openssl x509 -in /etc/ssl/atomakrealestate/fullchain.cer -noout -issuer -subject -dates
+
+Only after the files exist and contain a valid certificate, activate ATOMAK's separate HTTPS config:
+
+    cp /var/www/atomakrealestate/app/deploy/nginx/atomak-https.conf /etc/nginx/conf.d/atomakrealestate.ae.conf
+    nginx -t && systemctl reload nginx
     curl -I https://atomakrealestate.ae/ar
     curl -I https://www.atomakrealestate.ae/en
-    sudo certbot renew --dry-run
 
-Check that automatic Certbot renewal is scheduled using systemctl list-timers or your system's cron.
+Verify the existing acme.sh renewal cron, without changing Quoffa renewals:
 
+    crontab -l | grep acme.sh || true
+
+Do not copy /etc/ssl/quoffaapi files to ATOMAK. A certificate for one domain usually cannot secure another domain unless explicitly included in the certificate SAN list.
 ## 5. Deploy later GitHub updates
 
     cd /var/www/atomakrealestate/app
